@@ -135,6 +135,7 @@ def parse_vuln_type(text):
         "out of bounds read": "buffer-overflow",
         "out of bounds write": "buffer-overflow",
         "invalid read": "buffer-overflow",
+        "read access violation": "SEGV",
         "invalid memory access": "SEGV",
         "segv": "SEGV",
         "sigsgev": "SEGV",
