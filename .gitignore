@@ -2,3 +2,5 @@ config.py
 *.txt
 *.csv
 __pycache__/
+!logs/
+!logs/*

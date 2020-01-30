@@ -115,43 +115,80 @@ def parse_vuln_type(text):
         t = t.strip(",.;\"'()")
         if t.endswith("'s"):
             t = t[:-2]
-        t = {"writes":"write", "reads":"read"}.get(t,t)
+        t = {"writes":"write", "reads":"read", "overflows":"overflow", "leaks":"leak",
+             "overflowing":"overflow", "uninitialised":"uninitialized", "int32":"integer"}.get(t,t)
         textwords.append(t)
     translate_dict = {
         "invalid free":"free_error", 
         "heap based buffer overflow":"heap-buffer-overflow", 
         "stack based buffer overflow":"stack-buffer-overflow",
+        "stack based buffer under read":"stack-buffer-underflow",
         "floating point exception":"FloatingPointException",
         "fpe": "FloatingPointException",
         "divide by zero": "FloatingPointException",
+        "division by zero": "FloatingPointException",
         "heap buffer overflow": "heap-buffer-overflow",
+        "heap overflow": "heap-buffer-overflow",
+        "out-of-bounds heap access": "heap-buffer-overflow",
         "uncontrolled recursion": "stack-overflow",
         "stack consumption": "stack-overflow",
         "stack overflow": "stack-overflow",
         "excessive recursion": "stack-overflow",
+        "infinite recursion": "stack-overflow",
+        "unlimited recursion": "stack-overflow",
+        "stack exhaustion": "stack-overflow",
         "excessive memory allocation": "excessive_memory_allocation",
+        "memory consumption": "excessive_memory_allocation",
+        "uncontrolled memory allocation": "excessive_memory_allocation",
         "buffer over read": "buffer-overflow",
         "buffer overflow": "buffer-overflow",
-        "out of bounds read": "buffer-overflow",
-        "out of bounds write": "buffer-overflow",
+        "out of bounds": "buffer-overflow",
+        "out of array": "buffer-overflow",
         "invalid read": "buffer-overflow",
-        "read access violation": "SEGV",
+        "off by one": "buffer-overflow",
+        "use after free": "use-after-free",
+        "access violation": "SEGV",
+        "write memory access violation": "SEGV",
+        "read memory access violation": "SEGV",
+        "invalid memory write": "SEGV",
         "invalid memory access": "SEGV",
+        "illegal address access": "SEGV",
+        "invalid memory read": "SEGV",
+        "invalid pointer access": "SEGV",
+        "invalid address dereference": "SEGV",
+        "invalid pointer dereference": "SEGV",
         "segv": "SEGV",
-        "sigsgev": "SEGV",
+        "sigsegv": "SEGV",
         "address access exception": "SEGV",
         "segmentation violation": "SEGV",
         "segmentation fault": "SEGV",
         "assertion failure": "assertion_failure",
-        "memory leak": "memory_leak",
-        
+        "assertion abort": "assertion_failure",
+        "reachable assertion": "assertion_failure",
+        "reachable abort": "assertion_failure", # SIGABRT instead?
+        "assert fault": "assertion_failure",
+        "assertion violation": "assertion_failure",
+        "memory leak": "memory_leak", #unrelated
+        "infinite loop": "infinite_loop",
+        "application hang": "infinite_loop",
+        "null pointer dereference": "null_pointer_dereference",
+        "null dereference": "null_pointer_dereference",
+        "null pointer": "null_pointer_dereference",
+        "double free": "double-free",
+        "left shift of a negative value": "left_shift_negative", #need ubsan
+        "sigabrt": "SIGABRT",
+        "information leak":"information_leak", #unrelated
+        "integer overflow": "integer-overflow",
+        "integer underflow": "integer-underflow",
+        "corruption": "memory_corruption",
+        "code execution": "code_execution", #unrelated
+        "outside the range of representable values": "type_overflow", #need ubsan
+        "uninitialized": "uninitialized_memory_access" #maybe need msan
     }
-    for t in list(translate_dict.keys())+[
-        "infinite loop", "null pointer dereference", 
-        "use-after-free"
-    ]:
+    for t in translate_dict.keys():
         if wordin(textwords, t):
             return translate_dict.get(t, t)
+    #fprint(fp2, textwords)
     return None
 
 def fprint(fp, *args):
