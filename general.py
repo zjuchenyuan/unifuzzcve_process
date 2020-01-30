@@ -55,6 +55,7 @@ def runsql(sql, *args, onerror='raise', returnid=False, allow_retry=True):
 
 
 def dprint(*args):
+    return
     sys.stderr.write("\t".join([str(i) for i in args])+"\n")
 
 def wordpresent(words, text):
@@ -103,9 +104,62 @@ class CVE_general(TABLE):
     cvssv2 = 0.0 # CVSS v2
     cpe3 = "" # CPE v3
     cpe2 = "" # CPE v2
-    
+
+def wordin(list, item):
+    return " "+item+" " in " "+(" ".join(list))+" "
+
+def parse_vuln_type(text):
+    textwords = []
+    text = text.replace("over-read", "overflow")
+    for t in text.lower().replace("-", " ").replace("("," ").split():
+        t = t.strip(",.;\"'()")
+        if t.endswith("'s"):
+            t = t[:-2]
+        t = {"writes":"write", "reads":"read"}.get(t,t)
+        textwords.append(t)
+    translate_dict = {
+        "invalid free":"free_error", 
+        "heap based buffer overflow":"heap-buffer-overflow", 
+        "stack based buffer overflow":"stack-buffer-overflow",
+        "floating point exception":"FloatingPointException",
+        "fpe": "FloatingPointException",
+        "divide by zero": "FloatingPointException",
+        "heap buffer overflow": "heap-buffer-overflow",
+        "uncontrolled recursion": "stack-overflow",
+        "stack consumption": "stack-overflow",
+        "stack overflow": "stack-overflow",
+        "excessive recursion": "stack-overflow",
+        "excessive memory allocation": "excessive_memory_allocation",
+        "buffer over read": "buffer-overflow",
+        "buffer overflow": "buffer-overflow",
+        "out of bounds read": "buffer-overflow",
+        "out of bounds write": "buffer-overflow",
+        "invalid read": "buffer-overflow",
+        "invalid memory access": "SEGV",
+        "segv": "SEGV",
+        "sigsgev": "SEGV",
+        "address access exception": "SEGV",
+        "segmentation violation": "SEGV",
+        "segmentation fault": "SEGV",
+        "assertion failure": "assertion_failure",
+        "memory leak": "memory_leak",
+        
+    }
+    for t in list(translate_dict.keys())+[
+        "infinite loop", "null pointer dereference", 
+        "use-after-free"
+    ]:
+        if wordin(textwords, t):
+            return translate_dict.get(t, t)
+    return None
+
+def fprint(fp, *args):
+    return fp.write("\t".join([str(i) for i in args])+"\n")
+
 proglist = "exiv2 gdk-pixbuf jasper jhead libtiff lame mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump".split(" ")
 handled_cveids = []
+fp1 = open("1.txt", "w")
+fp2 = open("2.txt", "w")
 for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #print(id, description)
     if id in unrelated_cves:
@@ -137,6 +191,11 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     prog = {"sqlite3":"sqlite"}.get(prog, prog)
     handled_cveids.append(id)
     cwes,cvssv3,cvssv2,vectorv3,vectorv2 = CVSSDATA[id]
+    vuln_type = parse_vuln_type(desc)
+    if vuln_type:
+        fprint(fp1, id, vuln_type, desc)
+    else:
+        fprint(fp2, id, desc)
     #print(prog,id, desc, )
     x = CVE_general()
     x.id = id
@@ -147,5 +206,5 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.cvssv2 = cvssv2
     x.cpe3 = vectorv3
     x.cpe2 = vectorv2
-    x.save()
-    break
+    #x.save()
+    
