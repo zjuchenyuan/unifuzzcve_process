@@ -1,6 +1,6 @@
 import csv, sys
 import inspect
-from generaldata import blackword, unrelated_cves, related_cves, yearstart
+from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
 import threading, pymysql, warnings
 thread_data = threading.local()
@@ -191,6 +191,97 @@ def parse_vuln_type(text):
     #fprint(fp2, textwords)
     return None
 
+def parse_vuln_function(text):
+    data = parse_vuln_function_yw(text)
+    if not data:
+        return data
+    if data[-1] == ")":
+        data.pop()
+    return "###".join(data)
+
+# text is the description of a CVE
+def parse_vuln_function_yw(text):
+    textwords=[]
+
+    for t in text.lower().split():
+        t = t.strip(",.;")
+        textwords.append(t)
+    # print(textwords)
+
+    # if "bfd_elf_final_link" in text:
+    #     print (text)
+    # print(type(text))
+    # text = text.replace("over-read", "overflow")
+    # for t in text.lower().replace("-", " ").replace("("," ").split():
+    #     t = t.strip(",.;\"'()")
+    #     if t.endswith("'s"):
+    #         t = t[:-2]
+    #     t = {"writes":"write", "reads":"read"}.get(t,t)
+    #     textwords.append(t)
+    # print(textwords)
+    non_func=["","the", "at", "in", "a", "an"]
+    ext = [".c", ".cpp", ".h", ".hpp"]
+    whitelist=["getData"]
+    for i in range(0, len(textwords)):
+        if textwords[i]=="function":
+            vuln_func=textwords[i-1]
+            if vuln_func in non_func:
+                continue
+            #print("vulnable function: %s"%vuln_func)
+            vuln_func = vuln_func.split('(')
+            return vuln_func
+
+        if textwords[i] == "function":
+            vuln_func = textwords[i+1]
+            if vuln_func in non_func:
+                continue
+            if "_" in vuln_func:
+                #print("--------------------vulnable function: %s"%vuln_func)
+                vuln_func = vuln_func.split('(')
+                return vuln_func
+
+
+        if "::" in textwords[i]:
+            vuln_func=textwords[i]
+            if vuln_func in non_func:
+                continue
+            #print("vulnable function: %s"%vuln_func)
+            vuln_func = vuln_func.split('(')
+            return vuln_func
+
+        # if "()" in textwords[i] or "::" in textwords[i]:
+        if "()" in textwords[i]:
+            vuln_func = textwords[i]
+            if vuln_func in non_func:
+                continue
+           
+            if ".c:" in vuln_func or ".cpp:" in vuln_func:
+                vuln_func = vuln_func.split(":")[1]
+                # print("after split %s"%vuln_func)
+                
+            #print("vulnable function: %s"%vuln_func)
+            vuln_func = vuln_func.split('(')
+            return vuln_func
+
+        if textwords[i] == "in":
+            if textwords[i+1].endswith(tuple(ext)):
+                continue
+            vuln_func = textwords[i+1]
+            if textwords[i+1] == "the":
+                vuln_func = textwords[i+2]
+
+            if vuln_func in non_func:
+                continue
+
+            elif "_" in vuln_func:
+                if ".c:" in vuln_func or ".cpp:" in vuln_func:
+                    vuln_func = vuln_func.split(":")[1]
+                #print("vulnable function: %s"%vuln_func)
+                vuln_func = vuln_func.split('(')
+                return vuln_func
+
+    return None
+
 def fprint(fp, *args):
     return fp.write("\t".join([str(i) for i in args])+"\n")
 
@@ -230,10 +321,24 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     handled_cveids.append(id)
     cwes,cvssv3,cvssv2,vectorv3,vectorv2 = CVSSDATA[id]
     vuln_type = parse_vuln_type(desc)
-    if vuln_type:
-        fprint(fp1, id, vuln_type, desc)
-    else:
-        fprint(fp2, id, desc)
+    vuln_func = parse_vuln_function(desc)
+    vuln_purefunc = vuln_func.split("###")[0].split(":")[-1] if vuln_func else None
+    
+    links = []
+    
+    for link in ref.split("|"):
+        link = link.strip()
+        if "MISC:" in link or "CONFIRM:" in link:
+            url = link.replace("MISC:","").replace("CONFIRM:","")
+            domain = link.split("://")[1].split("/",1)[0]
+            if domain in lessuseful_domains:
+                continue
+            links.append(url)
+            #print(link)
+    #if vuln_func:
+    #    fprint(fp1, id, vuln_func, desc)
+    #else:
+    #    fprint(fp2, id, desc)
     #print(prog,id, desc, )
     x = CVE_general()
     x.id = id
@@ -244,5 +349,9 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.cvssv2 = cvssv2
     x.cpe3 = vectorv3
     x.cpe2 = vectorv2
-    #x.save()
+    x.vuln_type_description = vuln_type
+    x.vuln_func_description = vuln_func
+    x.vuln_purefunc_description = vuln_purefunc
+    x.useful_link = "###".join(links)
+    x.save()
     
