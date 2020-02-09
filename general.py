@@ -285,6 +285,13 @@ def parse_vuln_function_yw(text):
 def fprint(fp, *args):
     return fp.write("\t".join([str(i) for i in args])+"\n")
 
+def logtofile(data, id, desc):
+    global fp1, fp2
+    if data:
+        fprint(fp1, id, data, desc)
+    else:
+        fprint(fp2, id, desc)
+
 proglist = "exiv2 gdk-pixbuf jasper jhead libtiff lame mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump".split(" ")
 handled_cveids = []
 fp1 = open("1.txt", "w")
@@ -335,11 +342,27 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
                 continue
             links.append(url)
             #print(link)
-    #if vuln_func:
-    #    fprint(fp1, id, vuln_func, desc)
-    #else:
-    #    fprint(fp2, id, desc)
+    def extract_version(text):
+        for t in text.lower().replace("("," ").split():
+            t = t.strip(",.;\"'()")
+            if "." in t:
+                if t.startswith("v"):
+                    t = t[1:]
+                if t.split(".")[0].isdigit():
+                    return t
+            if "-" in t:
+                if t.split("-")[0].isdigit():
+                    return t
+            if len(t)>30 and all(map(lambda i:i.isdigit() or i in "abcdef", t)):
+                return t
+        return None
     #print(prog,id, desc, )
+    version = extract_version(desc)
+    logtofile(version, id, desc)
+    
+    
+
+    
     x = CVE_general()
     x.id = id
     x.project = prog
@@ -352,6 +375,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_type_description = vuln_type
     x.vuln_func_description = vuln_func
     x.vuln_purefunc_description = vuln_purefunc
+    x.version_description = version
     x.useful_link = "###".join(links)
-    x.save()
+    #x.save()
     

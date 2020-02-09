@@ -1,0 +1,27 @@
+CVE-2017-6311	gdk-pixbuf-thumbnailer.c in gdk-pixbuf allows context-dependent attackers to cause a denial of service (NULL pointer dereference and application crash) via vectors related to printing an error message.
+CVE-2017-6312	Integer overflow in io-ico.c in gdk-pixbuf allows context-dependent attackers to cause a denial of service (segmentation fault and application crash) via a crafted image entry offset in an ICO file, which triggers an out-of-bounds read, related to compiler optimizations.
+CVE-2017-6313	Integer underflow in the load_resources function in io-icns.c in gdk-pixbuf allows context-dependent attackers to cause a denial of service (out-of-bounds read and program crash) via a crafted image entry size in an ICO file.
+CVE-2017-6314	The make_available_at_least function in io-tiff.c in gdk-pixbuf allows context-dependent attackers to cause a denial of service (infinite loop) via a large TIFF file.
+CVE-2014-9655	The (1) putcontig8bitYCbCr21tile function in tif_getimage.c or (2) NeXTDecode function in tif_next.c in LibTIFF allows remote attackers to cause a denial of service (uninitialized memory access) via a crafted TIFF image, as demonstrated by libtiff-cvs-1.tif and libtiff-cvs-2.tif.
+CVE-2015-1547	The NeXTDecode function in tif_next.c in LibTIFF allows remote attackers to cause a denial of service (uninitialized memory access) via a crafted TIFF image, as demonstrated by libtiff5.tif.
+CVE-2015-7313	LibTIFF allows remote attackers to cause a denial of service (memory consumption and crash) via a crafted tiff file.
+CVE-2015-8781	tif_luv.c in libtiff allows attackers to cause a denial of service (out-of-bounds write) via an invalid number of samples per pixel in a LogL compressed TIFF image, a different vulnerability than CVE-2015-8782.
+CVE-2015-8782	tif_luv.c in libtiff allows attackers to cause a denial of service (out-of-bounds writes) via a crafted TIFF image, a different vulnerability than CVE-2015-8781.
+CVE-2015-8783	tif_luv.c in libtiff allows attackers to cause a denial of service (out-of-bounds reads) via a crafted TIFF image.
+CVE-2015-8784	The NeXTDecode function in tif_next.c in LibTIFF allows remote attackers to cause a denial of service (out-of-bounds write) via a crafted TIFF image, as demonstrated by libtiff5.tif.
+CVE-2016-5652	An exploitable heap-based buffer overflow exists in the handling of TIFF images in LibTIFF's TIFF2PDF tool. A crafted TIFF document can lead to a heap-based buffer overflow resulting in remote code execution. Vulnerability can be triggered via a saved TIFF file delivered by other means.
+CVE-2016-9453	The t2p_readwrite_pdf_image_tile function in LibTIFF allows remote attackers to cause a denial of service (out-of-bounds write and crash) or possibly execute arbitrary code via a JPEG file with a TIFFTAG_JPEGTABLES of length one.
+CVE-2017-1000174	In SWFTools, an address access exception was found in swfdump swf_GetBits().
+CVE-2017-1000176	In SWFTools, a memcpy buffer overflow was found in swfc.
+CVE-2017-1000182	In SWFTools, a memory leak was found in wav2swf.
+CVE-2017-1000185	In SWFTools, a memcpy buffer overflow was found in gif2swf.
+CVE-2017-1000186	In SWFTools, a stack overflow was found in pdf2swf.
+CVE-2017-1000187	In SWFTools, an address access exception was found in pdf2swf. FoFiTrueType::writeTTF()
+CVE-2017-1000460	In line libavcodec/h264dec.c:500 in libav(v13_dev0), ffmpeg(n3.4), chromium(56 prior Feb 13, 2017), the return value of init_get_bits is ignored and get_ue_golomb(&gb) is called on an uninitialized get_bits context, which causes a NULL deref exception.
+CVE-2015-8863	Off-by-one error in the tokenadd function in jv_parse.c in jq allows remote attackers to cause a denial of service (crash) via a long JSON-encoded number, which triggers a heap-based buffer overflow.
+CVE-2016-10132	regexp.c in Artifex Software, Inc. MuJS allows attackers to cause a denial of service (NULL pointer dereference and crash) via vectors related to regular expression compilation.
+CVE-2016-10133	Heap-based buffer overflow in the js_stackoverflow function in jsrun.c in Artifex Software, Inc. MuJS allows attackers to have unspecified impact by leveraging an error when dropping extra arguments to lightweight functions.
+CVE-2016-7563	The chartorune function in Artifex Software MuJS allows attackers to cause a denial of service (out-of-bounds read) via a * (asterisk) at the end of the input.
+CVE-2016-7564	Heap-based buffer overflow in the Fp_toString function in jsfunction.c in Artifex Software MuJS allows attackers to cause a denial of service (crash) via crafted input.
+CVE-2016-9109	Artifex Software MuJS allows attackers to cause a denial of service (crash) via vectors related to incomplete escape sequences.  NOTE: this vulnerability exists due to an incomplete fix for CVE-2016-7563.
+CVE-2016-10695	The npm-test-sqlite3-trunk module provides asynchronous, non-blocking SQLite3 bindings. npm-test-sqlite3-trunk downloads binary resources over HTTP, which leaves it vulnerable to MITM attacks. It may be possible to cause remote code execution (RCE) by swapping out the requested resources with an attacker controlled copy if the attacker is on the network or positioned in between the user and the remote server.
