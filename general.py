@@ -199,13 +199,16 @@ def parse_vuln_function(text):
         data.pop()
     return "###".join(data)
 
+def getwords(text, trimlist=",.;"):
+    words=[]
+    for t in text.lower().split():
+        t = t.strip(trimlist)
+        words.append(t)
+    return words
+
 # text is the description of a CVE
 def parse_vuln_function_yw(text):
-    textwords=[]
-
-    for t in text.lower().split():
-        t = t.strip(",.;")
-        textwords.append(t)
+    textwords=getwords(text)
     # print(textwords)
 
     # if "bfd_elf_final_link" in text:
@@ -292,6 +295,15 @@ def logtofile(data, id, desc):
     else:
         fprint(fp2, id, desc)
 
+def parse_vuln_file(text):
+    ext = [".c", ".cpp", ".h", ".hpp", ".cc"]
+    words = getwords(text.replace(":", " "), ",.;()\"")
+    for w in words:
+        for e in ext:
+            if w.endswith(e):
+                return w
+    return None
+
 proglist = "exiv2 gdk-pixbuf jasper jhead libtiff lame mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump".split(" ")
 handled_cveids = []
 fp1 = open("1.txt", "w")
@@ -358,9 +370,10 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
         return None
     #print(prog,id, desc, )
     version = extract_version(desc)
-    logtofile(version, id, desc)
+    #logtofile(version, id, desc)
     
-    
+    vuln_file_description = parse_vuln_file(desc)
+    logtofile(vuln_file_description, id, desc)
 
     
     x = CVE_general()
@@ -376,6 +389,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_func_description = vuln_func
     x.vuln_purefunc_description = vuln_purefunc
     x.version_description = version
+    x.vuln_file_description = vuln_file_description
     x.useful_link = "###".join(links)
     #x.save()
     
