@@ -1,6 +1,6 @@
 import csv, sys
 import inspect
-from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains
+from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains, bins
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
 import threading, pymysql, warnings
 thread_data = threading.local()
@@ -304,6 +304,12 @@ def parse_vuln_file(text):
                 return w
     return None
 
+def parse_binary(text):
+    for w in getwords(text):
+        if w in bins:
+            return w
+    return None
+
 proglist = "exiv2 gdk-pixbuf jasper jhead libtiff lame mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump".split(" ")
 handled_cveids = []
 fp1 = open("1.txt", "w")
@@ -373,8 +379,10 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #logtofile(version, id, desc)
     
     vuln_file_description = parse_vuln_file(desc)
-    logtofile(vuln_file_description, id, desc)
-
+    #logtofile(vuln_file_description, id, desc)
+    
+    binary = parse_binary(desc)
+    logtofile(binary, id, desc)
     
     x = CVE_general()
     x.id = id
@@ -390,6 +398,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_purefunc_description = vuln_purefunc
     x.version_description = version
     x.vuln_file_description = vuln_file_description
+    x.binary = binary
     x.useful_link = "###".join(links)
     #x.save()
     
