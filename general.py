@@ -3,6 +3,7 @@ import inspect
 from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains, bins
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
 import threading, pymysql, warnings
+from poccrawler import downloadpocfile
 thread_data = threading.local()
 
 def db():
@@ -314,6 +315,7 @@ proglist = "exiv2 gdk-pixbuf jasper jhead libtiff lame mp3gain swftools ffmpeg f
 handled_cveids = []
 fp1 = open("1.txt", "w")
 fp2 = open("2.txt", "w")
+start=False #TODO: remove this
 for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #print(id, description)
     if id in unrelated_cves:
@@ -400,5 +402,8 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_file_description = vuln_file_description
     x.binary = binary
     x.useful_link = "###".join(links)
+    if 1:#if "http://bugzilla.maptools.org/show_bug.cgi?id=2810" in links:
+        start=True
+    if start:
+        downloadpocfile(id, links)
     #x.save()
-    

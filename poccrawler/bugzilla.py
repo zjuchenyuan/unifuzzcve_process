@@ -7,21 +7,47 @@ def geturl(href, urlbase):
         return href
     return urlbase+"/"+href
 
+def callback(x):
+    if x.status_code != 200:
+        raise Exception("not 200")
+    else:
+        pass
+
+class AttachmentNotFound(Exception):
+    pass
+
 class Bugzilla():
-    def get(self, url):
+    def get(self, url, retry=3):
         global a
-        a.get(url, o=True, cache=True)
+        try:
+            res = a.get(url, o=True, cache=True, allow_redirects=True, callback=callback)
+        except:
+            if retry:
+                print("[retry] ", url)
+                return self.get(url, retry=retry-1)
+            else:
+                raise
         self.url = url
         self.urlbase = "/".join(url.split("/")[:-1])
         self.b = a.b
+        return res
     
-    def download_attachments(self, dest_folder, filter_func=None):
+    def get_attachments(self, url, filter_func=None):
+        html = self.get(url).text
         b = self.b
         table = b.find(*self.att_table)
-        attachments = [(link.text, geturl(link["href"], self.urlbase)) for link in table.find_all(*self.att_link)]
+        if not table:
+            if "Bug Access Denied" in html:
+                print("[Bug Access Denied]", url)
+                return []
+            raise AttachmentNotFound(html)
+        attachments = [(link.text.strip(), geturl(link["href"], self.urlbase)) for link in table.find_all(*self.att_link)]
         if filter_func:
             attachments = [i for i in attachments if filter_func(i)]
-        
+        return attachments
+    
+    def download_attachments(self, dest_folder, filter_func=None):
+        pass
     
     def __init__(self, **args):
         self.att_table = ("table", {"id":"attachment_table"})
