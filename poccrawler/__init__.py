@@ -1,6 +1,7 @@
 from .githubissue import getpocurls_githubissue
 from .bugzilla import Bugzilla, AttachmentNotFound
 from .gentoo import getpocurls_gentoo
+from .bugschromium import getpocurls_bugschromium
 bugzilla = Bugzilla()
 def downloadpocfile(cveid, links):
     for link in links:
@@ -16,6 +17,10 @@ def downloadpocfile(cveid, links):
         elif "blogs.gentoo.org" in link:
             #print(link)
             res = getpocurls_gentoo(link)
+            #print(res)
+        elif "code.google.com/p/chromium/issues" in link or "bugs.chromium.org/p/oss-fuzz/issues" in link:
+            #print(link)
+            res = getpocurls_bugschromium(link)
             #print(res)
         else:
             pass
