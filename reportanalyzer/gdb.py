@@ -1,6 +1,35 @@
+#encoding: utf-8
 import re
-# copied from https://github.com/Exiv2/exiv2/issues/712
-text = """Program received signal SIGINT, Interrupt.
+
+def extract_funcnames(line):
+    return line.replace("(anonymous namespace)::","#anonymous namespace#::").split("→ ")[-1].split("(")[0].replace("#anonymous namespace#::","(anonymous namespace)::")
+
+def parse_gdb(text, func_extract_funcnames=extract_funcnames):
+    stacks = []
+    tmp=[]
+    lastnumber = -1
+    for line in text.split("\n"):
+        number = re.findall(r"#(\d+)", line)
+        if not len(number)==1:
+            continue
+        number = int(number[0])
+        if number == 0:
+            if tmp:
+                stacks.append(tmp)
+            tmp = [extract_funcnames(line)]
+        elif number == lastnumber+1:
+            tmp.append(extract_funcnames(line))
+        else:
+            stacks.append(tmp)
+            tmp = []
+        lastnumber = number
+    stacks.append(tmp)
+    #print(stacks)
+    return stacks
+
+if __name__ == "__main__":
+    # copied from https://github.com/Exiv2/exiv2/issues/712
+    text = """Program received signal SIGINT, Interrupt.
 0x00007ffff62276a9 in std::__cxx11::basic_string<char, std::char_traits<char>, std::allocator<char> >::_M_append(char const*, unsigned long) () from /usr/lib/x86_64-linux-gnu/libstdc++.so.6
 [ Legend: Modified register | Code | Heap | Stack | String ]
 ───────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────── registers ────
@@ -56,36 +85,7 @@ $cs: 0x0033 $ss: 0x002b $ds: 0x0000 $es: 0x0000 $fs: 0x0000 $gs: 0x0000
 [#8] 0x7ffff66ebe88 → Exiv2::(anonymous namespace)::BigTiffImage::printIFD(this=0x61300000de80, out=@0x672ac0, option=Exiv2::kpsRecursive, dir_offset=0x80, depth=0xd1a)
 [#9] 0x7ffff66ebe88 → Exiv2::(anonymous namespace)::BigTiffImage::printIFD(this=0x61300000de80, out=@0x672ac0, option=Exiv2::kpsRecursive, dir_offset=0x80, depth=0xd19)
 """
-
-stacks = []
-stack=[]
-lastnumber = -1
-for line in text.split("\n"):
-    number = re.findall(r"#(\d+)", line)
-    if not len(number)==1:
-        continue
-    number = int(number[0])
-    if number == 0:
-        if stack:
-            stacks.append(stack)
-        stack = [line]
-    elif number == lastnumber+1:
-        stack.append(line)
-    else:
-        stacks.append(stack)
-        stack = []
-    lastnumber = number
-stacks.append(stack)
-print(stacks)
-
-def extract_funcnames(line):
-    res = []
-    for word in line.replace("(anonymous namespace)::","").split():
-        if "(" in word:
-            res.append(word.split("(")[0])
-    return res
-
-for stack in stacks:
-    for line in stack:
-        print(extract_funcnames(line))
-    print("--------------")
+    for stack in parse_gdb(text):
+        for func in stack:
+            print(func)
+        print("--------------")

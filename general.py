@@ -1,4 +1,4 @@
-import csv, sys
+import csv, sys, os
 import inspect
 from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains, bins
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
@@ -200,16 +200,18 @@ def parse_vuln_function(text):
         data.pop()
     return "###".join(data)
 
-def getwords(text, trimlist=",.;"):
+def getwords(text, trimlist=",.;", tolower=True):
     words=[]
-    for t in text.lower().split():
+    if tolower:
+        text = text.lower()
+    for t in text.split():
         t = t.strip(trimlist)
         words.append(t)
     return words
 
 # text is the description of a CVE
 def parse_vuln_function_yw(text):
-    textwords=getwords(text)
+    textwords=getwords(text, tolower=False)
     # print(textwords)
 
     # if "bfd_elf_final_link" in text:
@@ -316,6 +318,7 @@ handled_cveids = []
 fp1 = open("1.txt", "w")
 fp2 = open("2.txt", "w")
 start=False #TODO: remove this
+todo=[]
 for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #print(id, description)
     if id in unrelated_cves:
@@ -401,10 +404,105 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.version_description = version
     x.vuln_file_description = vuln_file_description
     x.binary = binary
-    x.useful_link = "###".join(links)
-    #if 1:
-    if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
+    x.useful_link = "###".join([i for i in links if i])
+    if prog!="exiv2":
+        continue
+    if 0:
+    #if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
         start=True
     if start:
         downloadpocfile(id, links)
     #x.save()
+    todo.append(x)
+
+template=["id", "reference[]", "command", "stacktype", "isreproduced", "vuln_type", "stacktrace[]", "vuln_file", "date", "author_username", "author_site", "fix", "note", "note2"]
+# reference[]: delete useless links
+# command: including binary and @@
+# stacktype: asan or gdb
+# isreproduced: if 1, stacktrace are generated from running PoC files, otherwise collected from webpage reports.
+# stacktrace[]: this is a list, split by \n, limit to first 20 functions
+
+# Interactively add detailed CVE data
+# First, we auto download PoC files, open the reference site, generate a text file and open it for user edit
+# Then, user will modify the text file, this script will add it to the db
+
+def writetemplate(*args):
+    id = args[0]
+    pending_filepath = "cvedata/pending/"+id+".txt"
+    fp = open(pending_filepath, "w", encoding="utf-8")
+    for i, value in enumerate(args):
+        key = template[i].replace("[]","")
+        if isinstance(value, list):
+            value = "\n".join(value)
+        fp.write(f"~{key}: {value}\n")
+        if "\n" in value:
+            fp.write("\n")
+    fp.close()
+    os.startfile(pending_filepath.replace("/", os.sep))
+
+import webbrowser
+def openbrowser(link):
+    return
+    webbrowser.open(link, new=2)
+
+from EasyLogin import EasyLogin
+from config import el_params
+a=EasyLogin(**el_params)
+def gethtml(url, retry=3):
+    try:
+        return a.get(url, result=False, cache=True)
+    except:
+        if retry:
+            return gethtml(url, retry=retry-1)
+        else:
+            raise
+
+from utils import strip_tags
+from pprint import pprint
+from reportanalyzer import parse_gdb
+import re
+
+data = sorted(todo, key=lambda i:str(i.id), reverse=True)
+for i,x in enumerate(data):
+    print(f"[{i}/{len(todo)}] {x.id} {x.vuln_type_description} {x.vuln_func_description}")
+    if i%5==0:
+        for j in range(i, min(i+10, len(data))):
+            links = data[j].useful_link.split("###")
+            if not links:
+                openbrowser("https://cve.mitre.org/cgi-bin/cvename.cgi?name="+data[j].id)
+            for link in links:
+                openbrowser(link)
+    allhtml = ""
+    author_username, author_site, fix = "", "", ""
+    for link in x.useful_link.split("###"):
+        if "/commit/" in link or "/pull/" in link or "/compare/" in link:
+            fix = link
+            continue
+        if not link:
+            continue
+        print(link)
+        allhtml += gethtml(link)
+    #continue # this is used to preload all html before manual work
+    commands = []
+    for line in allhtml.split("\n"):
+        if "@@" in line or "$POC" in line or "Command" in line:
+            commands.append(strip_tags(line))
+    #print(commands)
+    if "AddressSanitizer" in allhtml:
+        stacktype = "asan"
+    else:
+        stacktype="gdb?"
+    isreproduced = "-1"
+    vuln_type = x.vuln_type_description
+    stacks = parse_gdb(strip_tags(allhtml))
+    stacktrace = []
+    for stack in stacks:
+        stacktrace.extend(stack)
+    datestrs = re.findall(r"(\d\d\d\d-\d\d-\d\d)", allhtml)
+    if datestrs:
+        date = datestrs[0]
+    else:
+        date = ""
+    
+    writetemplate(x.id, x.useful_link.split("###"), commands, stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, date, author_username, author_site, fix, note, note2)
+    input()

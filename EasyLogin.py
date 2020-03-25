@@ -156,6 +156,8 @@ class EasyLogin:
             else:
                 if not encoding:
                     encoding = chardet.detect(page)["encoding"]
+                if not encoding:
+                    encoding = "utf-8"
                 return page.decode(encoding,errors='replace')
         if r:
             if headers is None:
