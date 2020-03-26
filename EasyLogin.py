@@ -137,12 +137,13 @@ class EasyLogin:
         if cache:
             cache_filepath = self.cachedir + cache
         if cache is not None and os.path.exists(cache_filepath): # cache exist, read from cache
-            with open(cache_filepath, "rb") as fp:
-                if o:
+            try:
+                with open(cache_filepath, "rb") as fp:
                     obj = pickle.load(fp)
-                    page = obj.content
-                else:
-                    page = fp.read()
+            except:
+                os.unlink(cache_filepath)
+                return self.get(url, result=result, save=save, headers=headers, o=o, cache=cache, r=r, cookiestring=cookiestring, failstring=failstring, debug=debug, fixfunction=fixfunction, encoding=encoding, callback=callback, **kwargs)
+            page = obj.content
             if result:
                 page = page.replace(b"<br>", b"\n").replace(b"<BR>", b"\n")
                 if fixfunction is not None:
@@ -188,15 +189,12 @@ class EasyLogin:
         if save:
             with open(self.cookiefile, "wb") as fp:
                 fp.write(pickle.dumps(self.s.cookies))
+        if cache is not None:
+            with open(cache_filepath, "wb") as fp:
+                fp.write(pickle.dumps(x))
         if o:  # if you need object returned
-            if cache is not None:
-                with open(cache_filepath, "wb") as fp:
-                    fp.write(pickle.dumps(x))
             return x
         else:
-            if cache is not None:
-                with open(cache_filepath, "wb") as fp:
-                    fp.write(x.content)
             return x.text
 
     def post(self, url, data, result=True, save=False, headers=None, cache=None, dont_change_cookie=False, **kwargs):

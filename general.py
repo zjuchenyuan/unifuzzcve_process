@@ -2,8 +2,8 @@ import csv, sys, os
 import inspect
 from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains, bins
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
-import threading, pymysql, warnings
-from poccrawler import downloadpocfile
+import threading, pymysql, warnings, traceback
+from poccrawler import downloadpocfile, pocfile_organize, clearpending
 thread_data = threading.local()
 
 def db():
@@ -405,13 +405,13 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_file_description = vuln_file_description
     x.binary = binary
     x.useful_link = "###".join([i for i in links if i])
-    if prog!="exiv2":
-        continue
-    if 0:
+    #if prog!="exiv2":
+    #    continue
+    #if 0:
     #if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
-        start=True
-    if start:
-        downloadpocfile(id, links)
+    #    start=True
+    #if start:
+    #    downloadpocfile(id, links)
     #x.save()
     todo.append(x)
 
@@ -450,7 +450,7 @@ from config import el_params
 a=EasyLogin(**el_params)
 def gethtml(url, retry=3):
     try:
-        return a.get(url, result=False, cache=True)
+        return a.get(url, result=False, cache=True, o=True, allow_redirects=True).text
     except:
         if retry:
             return gethtml(url, retry=retry-1)
@@ -461,9 +461,14 @@ from utils import strip_tags
 from pprint import pprint
 from reportanalyzer import parse_gdb
 import re
+from poccrawler.githubissue import getissueowner
 
-data = sorted(todo, key=lambda i:str(i.id), reverse=True)
+clearpending()
+del(os.path.samefile) # Workaround for sshfs-win folder, see issue https://github.com/billziss-gh/sshfs-win/issues/162
+
+data = sorted(todo, key=lambda i:str(i.id), reverse=True)[::-1]
 for i,x in enumerate(data):
+  try:
     print(f"[{i}/{len(todo)}] {x.id} {x.vuln_type_description} {x.vuln_func_description}")
     if i%5==0:
         for j in range(i, min(i+10, len(data))):
@@ -474,6 +479,7 @@ for i,x in enumerate(data):
                 openbrowser(link)
     allhtml = ""
     author_username, author_site, fix = "", "", ""
+    note, note2 = "", ""
     for link in x.useful_link.split("###"):
         if "/commit/" in link or "/pull/" in link or "/compare/" in link:
             fix = link
@@ -482,11 +488,14 @@ for i,x in enumerate(data):
             continue
         print(link)
         allhtml += gethtml(link)
+        if "github.com" in link and "/issues/" in link:
+            author_username = getissueowner(link)
+            author_site = "github"
     #continue # this is used to preload all html before manual work
     commands = []
     for line in allhtml.split("\n"):
         if "@@" in line or "$POC" in line or "Command" in line:
-            commands.append(strip_tags(line))
+            commands.append(strip_tags(line).replace("$POC","@@"))
     #print(commands)
     if "AddressSanitizer" in allhtml:
         stacktype = "asan"
@@ -503,6 +512,10 @@ for i,x in enumerate(data):
         date = datestrs[0]
     else:
         date = ""
-    
-    writetemplate(x.id, x.useful_link.split("###"), commands, stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, date, author_username, author_site, fix, note, note2)
-    input()
+    downloadpocfile(x.id, x.useful_link.split("###"), writefile=False)
+    #writetemplate(x.id, x.useful_link.split("###"), commands, stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, date, author_username, author_site, fix, note, note2)
+    #input("Enter when ready")
+    #pocfile_organize(x.project, x.id)
+  except:
+    traceback.print_exc()
+    continue

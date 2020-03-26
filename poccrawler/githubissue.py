@@ -28,6 +28,11 @@ def ispocurl(url):
 def getpocurls_githubissue(url):
     return set([i for i in extracturls("\n".join(getissuetext(url))) if ispocurl(i)])
 
+def getissueowner(url):
+    apiurl = url.replace("/github.com/", "/api.github.com/repos/")
+    x = a.get(apiurl, result=False, o=True, cache=True, failstring="API rate limit exceeded", auth=(githubusername, githubtoken)).json()
+    return x["user"]["login"]
+
 if __name__ == "__main__":
     from pprint import pprint
     pprint(getpocurls_githubissue("https://github.com/Exiv2/exiv2/issues/712"))
