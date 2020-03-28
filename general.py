@@ -1,7 +1,7 @@
 import csv, sys, os
 import inspect
 from generaldata import blackword, unrelated_cves, related_cves, yearstart, lessuseful_domains, bins
-from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB
+from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, POCFOLDER
 import threading, pymysql, warnings, traceback
 from poccrawler import downloadpocfile, pocfile_organize, clearpending
 thread_data = threading.local()
@@ -410,8 +410,8 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_file_description = vuln_file_description
     x.binary = binary
     x.useful_link = "###".join([i for i in links if i])
-    #if prog!="exiv2":
-    #    continue
+    if prog!="exiv2": #TODO: delete this filter
+        continue
     #if 0:
     #if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
     #    start=True
@@ -501,12 +501,13 @@ def readtemplate(id):
             x = CVE_asan()
         else:
             x = CVE_gdb()
+        print(datatmp)
         x.id = id
         x.isreproduced = datatmp["isreproduced"]
         x.vuln_type = datatmp["vuln_type"]
         x.stacktrace = "###".join(datatmp["stacktrace"])
         x.vuln_file = datatmp["vuln_file"]
-        x.poc_md5 = filemd5(datatmp["pocname"])
+        x.poc_md5 = filemd5(POCFOLDER+"/pending/"+datatmp["pocname"])
         objs_stacktrace.append(x)
         datatmp = {}
         
@@ -517,6 +518,7 @@ def readtemplate(id):
             savekv(key, value)
             key, value = line.split(":",1)
         elif line.startswith("======"):
+            savekv(key, value)
             datatmp_done()
         elif line:
             if not isinstance(value, list):
@@ -526,7 +528,7 @@ def readtemplate(id):
 
 import webbrowser
 def openbrowser(link):
-    return
+    #return
     webbrowser.open(link, new=2)
 
 def savetxt(id):
@@ -546,7 +548,7 @@ def gethtml(url, retry=3):
 
 from utils import strip_tags, filemd5
 from pprint import pprint
-from reportanalyzer import parse_gdb
+from reportanalyzer import parse_gdb, parse_asan
 import re
 from poccrawler.githubissue import getissueowner
 
@@ -563,12 +565,15 @@ for i,x in enumerate(data):
   try:
     print(f"[{i}/{len(todo)}] {x.id} {x.vuln_type_description} {x.vuln_func_description}")
     if i%5==0:
-        for j in range(i, min(i+10, len(data))):
+        toopen=[]
+        for j in range(i, min(i+5, len(data))):
             links = data[j].useful_link.split("###")
             if not links:
-                openbrowser("https://cve.mitre.org/cgi-bin/cvename.cgi?name="+data[j].id)
+                toopen.append("https://cve.mitre.org/cgi-bin/cvename.cgi?name="+data[j].id)
             for link in links:
-                openbrowser(link)
+                toopen.append(link)
+        if input("open {} links? Enter n to skip".format(len(toopen))) not in ["n", "N"]:
+            [openbrowser(i) for i in toopen]
     allhtml = ""
     author_username, author_site, fix = "", "", ""
     note, note2 = "", ""
@@ -591,11 +596,13 @@ for i,x in enumerate(data):
     #print(commands)
     if "AddressSanitizer" in allhtml:
         stacktype = "asan"
+        stacks = parse_asan(strip_tags(allhtml))
     else:
         stacktype="gdb?"
+        stacks = parse_gdb(strip_tags(allhtml))
     isreproduced = "-1"
     vuln_type = x.vuln_type_description
-    stacks = parse_gdb(strip_tags(allhtml))
+    
     stacktrace = []
     for stack in stacks:
         stacktrace.extend(stack)
@@ -607,8 +614,8 @@ for i,x in enumerate(data):
     downloadpocfile(x.id, x.useful_link.split("###"), writefile=not PRELOAD)
     if not PRELOAD:
         pending_filepath = writetemplate(x.id, x.useful_link.split("###"), commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2)
+        os.startfile(pending_filepath.replace("/", os.sep))
         while True:
-            os.startfile(pending_filepath.replace("/", os.sep))
             input("Enter when ready")
             try:
                 objs_stacktrace, obj_extra = readtemplate(x.id)

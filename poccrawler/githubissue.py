@@ -23,7 +23,7 @@ def extracturls(text):
 
 def ispocurl(url):
     #print(url)
-    return "poc" in url or "?raw=true" in url
+    return "poc" in url or "?raw=true" in url or "/files/" in url
 
 def getpocurls_githubissue(url):
     return set([i for i in extracturls("\n".join(getissuetext(url))) if ispocurl(i)])
