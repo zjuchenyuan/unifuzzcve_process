@@ -15,3 +15,7 @@ def strip_tags(html):
     s = MLStripper()
     s.feed(html)
     return s.get_data()
+
+import hashlib
+def filemd5(filepath):
+    return hashlib.md5(open(filepath, "rb").read()).hexdigest()

@@ -9,7 +9,7 @@ from config import el_params, POCFOLDER
 a=EasyLogin(**el_params)
 import shutil
 import os
-import hashlib
+from utils import filemd5
 import traceback
 
 POCPENDING=POCFOLDER+"/pending"
@@ -35,7 +35,7 @@ def url2file(url, t, retry=3, cache=True, writefile=True):
         x = a.get(url, result=False, o=True, allow_redirects=True, cache=cache)
     except Exception as e:
         if retry:
-            return url2file(url, t, retry=retry-1)
+            return url2file(url, t, retry=retry-1, writefile=writefile)
         else:
             print(f"[FAIL] {url} {e}")
             traceback.print_exc()
@@ -92,8 +92,9 @@ def pocfile_organize(prog, cveid):
         if not f.isdigit():
             continue
         t+=1
-        themd5 = hashlib.md5(open(POCPENDING+"/"+f, "rb").read()).hexdigest()
+        themd5 = filemd5(POCPENDING+"/"+f)
         print(f"{f}->{t} {themd5}")
         shutil.copy(POCPENDING+"/"+f, POCFOLDER+"/byprog/"+prog+"/"+cveid+"_"+str(t))
         shutil.copy(POCPENDING+"/"+f, POCFOLDER+"/bymd5/"+themd5)
     clearpending(cveid)
+    return t

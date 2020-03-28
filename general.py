@@ -84,7 +84,12 @@ class TABLE():
     
     def save(self):
         sql = "replace into "+self.__class__.__name__.lower()+"(`" + "`,`".join(self.attributes)+"`) values ("+ ("%s,"*len(self.attributes))[:-1] +")"
-        values = [getattr(self, key) for key in self.attributes]
+        values = []
+        for key in self.attributes:
+            v = getattr(self, key)
+            if isinstance(v, list) or isinstance(v, tuple):
+                v = "###".join(v)
+            values.append(v)
         #print(sql, values)
         return runsql(sql, *values)
 
@@ -415,7 +420,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #x.save()
     todo.append(x)
 
-template=["id", "reference[]", "command", "stacktype", "isreproduced", "vuln_type", "stacktrace[]", "vuln_file", "date", "author_username", "author_site", "fix", "note", "note2"]
+template=["id", "reference[]", "command", "===", "pocname", "stacktype", "isreproduced", "vuln_type", "stacktrace[]", "vuln_file", "===", "date", "author_username", "author_site", "fix", "note", "note2"]
 # reference[]: delete useless links
 # command: including binary and @@
 # stacktype: asan or gdb
@@ -434,16 +439,98 @@ def writetemplate(*args):
         key = template[i].replace("[]","")
         if isinstance(value, list):
             value = "\n".join(value)
-        fp.write(f"~{key}: {value}\n")
-        if "\n" in value:
-            fp.write("\n")
+        if key == "===":
+            fp.write("============\n")
+        else:
+            if not value:
+                value = ""
+            fp.write(f"~~{key}: {value}\n")
+            if "\n" in value:
+                fp.write("\n")
     fp.close()
-    os.startfile(pending_filepath.replace("/", os.sep))
+    return pending_filepath
+
+class CVE_gdb(TABLE):
+    id = "" # CVE id
+    isreproduced = -1
+    vuln_type = ""
+    stacktrace = "" # Limit to first 20 functions.
+    vuln_file = ""
+    poc_md5 = ""
+
+class CVE_asan(CVE_gdb):
+    pass
+
+class CVE_extra(TABLE):
+    id = ""
+    reference = ""
+    command = ""
+    date = ""
+    author_username = ""
+    author_site = ""
+    reproduced = -1
+    poc_number = 0
+    fix = ""
+    note = ""
+    note2 = ""
+
+def readtemplate(id):
+    # return [CVE_asans,...], CVE_extra
+    pending_filepath = "cvedata/pending/"+id+".txt"
+    datatmp = {} # temporary dict for CVE_asan or CVE_gdb
+    objs_stacktrace, obj_extra = [], CVE_extra()
+    obj_extra.id = id
+    def savekv(key, value):
+        if isinstance(value, str):
+            value = value.strip()
+        else:
+            value = [v.strip() for v in value]
+        nonlocal objs_stacktrace, obj_extra, datatmp
+        key = key.lstrip("~")
+        if key not in ["pocname", "stacktype", "isreproduced", "vuln_type", "stacktrace", "vuln_file"]:
+            return setattr(obj_extra, key, value)
+        if not key:
+            return
+        datatmp[key] = value
+    def datatmp_done():
+        nonlocal objs_stacktrace, obj_extra, datatmp, id
+        if "stacktype" not in datatmp:
+            return
+        assert datatmp["stacktype"] in ["asan", "gdb"]
+        if datatmp["stacktype"]=="asan":
+            x = CVE_asan()
+        else:
+            x = CVE_gdb()
+        x.id = id
+        x.isreproduced = datatmp["isreproduced"]
+        x.vuln_type = datatmp["vuln_type"]
+        x.stacktrace = "###".join(datatmp["stacktrace"])
+        x.vuln_file = datatmp["vuln_file"]
+        x.poc_md5 = filemd5(datatmp["pocname"])
+        objs_stacktrace.append(x)
+        datatmp = {}
+        
+    key, value = "", ""
+    for line in open(pending_filepath, encoding="utf-8"):
+        line = line.strip()
+        if line.startswith("~~"):
+            savekv(key, value)
+            key, value = line.split(":",1)
+        elif line.startswith("======"):
+            datatmp_done()
+        elif line:
+            if not isinstance(value, list):
+                value = [value]
+            value.append(line)
+    return objs_stacktrace, obj_extra
 
 import webbrowser
 def openbrowser(link):
     return
     webbrowser.open(link, new=2)
+
+def savetxt(id):
+    os.rename("cvedata/pending/"+id+".txt", "cvedata/done/"+id+".txt")
 
 from EasyLogin import EasyLogin
 from config import el_params
@@ -457,17 +544,22 @@ def gethtml(url, retry=3):
         else:
             raise
 
-from utils import strip_tags
+from utils import strip_tags, filemd5
 from pprint import pprint
 from reportanalyzer import parse_gdb
 import re
 from poccrawler.githubissue import getissueowner
 
-clearpending()
+PRELOAD=False
+
+if not PRELOAD:
+    clearpending()
 del(os.path.samefile) # Workaround for sshfs-win folder, see issue https://github.com/billziss-gh/sshfs-win/issues/162
 
-data = sorted(todo, key=lambda i:str(i.id), reverse=True)[::-1]
+data = sorted(todo, key=lambda i:str(i.id), reverse=True)
 for i,x in enumerate(data):
+  if os.path.isfile("cvedata/done/"+x.id+".txt"):
+    continue
   try:
     print(f"[{i}/{len(todo)}] {x.id} {x.vuln_type_description} {x.vuln_func_description}")
     if i%5==0:
@@ -512,10 +604,27 @@ for i,x in enumerate(data):
         date = datestrs[0]
     else:
         date = ""
-    downloadpocfile(x.id, x.useful_link.split("###"), writefile=False)
-    #writetemplate(x.id, x.useful_link.split("###"), commands, stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, date, author_username, author_site, fix, note, note2)
-    #input("Enter when ready")
-    #pocfile_organize(x.project, x.id)
+    downloadpocfile(x.id, x.useful_link.split("###"), writefile=not PRELOAD)
+    if not PRELOAD:
+        pending_filepath = writetemplate(x.id, x.useful_link.split("###"), commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2)
+        while True:
+            os.startfile(pending_filepath.replace("/", os.sep))
+            input("Enter when ready")
+            try:
+                objs_stacktrace, obj_extra = readtemplate(x.id)
+                break
+            except:
+                traceback.print_exc()
+        for i in objs_stacktrace:
+            print(i.__dict__)
+            i.save()
+        print(obj_extra.__dict__)
+        obj_extra.poc_number = pocfile_organize(x.project, x.id)
+        obj_extra.save()
+        
+        savetxt(x.id)
   except:
+    if not PRELOAD:
+        raise
     traceback.print_exc()
     continue
