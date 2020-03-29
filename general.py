@@ -420,7 +420,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #x.save()
     todo.append(x)
 
-template=["id", "reference[]", "command", "===", "pocname", "stacktype", "isreproduced", "vuln_type", "stacktrace[]", "vuln_file", "===", "date", "author_username", "author_site", "fix", "note", "note2"]
+template=["id", "reference[]", "command", "===", "pocname", "stacktype", "isreproduced", "vuln_type", "stacktrace[]", "vuln_file", "===", "date", "author_username", "author_site", "fix", "note", "note2", "reproduced"]
 # reference[]: delete useless links
 # command: including binary and @@
 # stacktype: asan or gdb
@@ -524,6 +524,8 @@ def readtemplate(id):
             if not isinstance(value, list):
                 value = [value]
             value.append(line)
+        else:
+            savekv(key, value)
     return objs_stacktrace, obj_extra
 
 import webbrowser
@@ -613,7 +615,7 @@ for i,x in enumerate(data):
         date = ""
     downloadpocfile(x.id, x.useful_link.split("###"), writefile=not PRELOAD)
     if not PRELOAD:
-        pending_filepath = writetemplate(x.id, x.useful_link.split("###"), commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2)
+        pending_filepath = writetemplate(x.id, x.useful_link.split("###"), commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2, "-1")
         os.startfile(pending_filepath.replace("/", os.sep))
         while True:
             input("Enter when ready")
