@@ -9,7 +9,7 @@ from config import el_params, POCFOLDER
 a=EasyLogin(**el_params)
 import shutil
 import os
-from utils import filemd5
+from utils import filemd5, getdomain
 import traceback
 
 POCPENDING=POCFOLDER+"/pending"
@@ -55,7 +55,7 @@ def downloadpocfile(cveid, links, writefile=True):
             #print(link)
             res = getpocurls_githubissue(link)
             #print(res)
-        elif "show_bug.cgi" in link:
+        elif "show_bug.cgi" in link and getdomain(link) not in ["bugzilla.mozilla.org"]:
             #print(link)
             domain = link.replace("https://","").replace("http://","").split("/")[0]
             res = bugzilla.get_attachments(link)

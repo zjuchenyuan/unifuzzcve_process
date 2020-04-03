@@ -4,6 +4,8 @@ from generaldata import blackword, unrelated_cves, related_cves, yearstart, less
 from config import MYSQL_HOST, MYSQL_PORT, MYSQL_USER, MYSQL_PASSWORD, MYSQL_DB, POCFOLDER
 import threading, pymysql, warnings, traceback
 from poccrawler import downloadpocfile, pocfile_organize, clearpending
+from utils import strip_tags, filemd5, getdomain
+
 thread_data = threading.local()
 
 def db():
@@ -326,21 +328,21 @@ start=False #TODO: remove this
 todo=[]
 for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     #print(id, description)
-    if id in unrelated_cves:
-        continue #filtered by blacklist
-    year = int(id.split("-")[1])
-    if year<yearstart:
-        continue # filtered by year, we ignore too old CVEs
-    if id in handled_cveids:
-        continue # there are duplicated entries, ignore if we meet it twice
-    filtered = False
-    if id not in related_cves:
+    if id not in related_cves: # whitelist
+        if id in unrelated_cves:
+            continue #filtered by blacklist
+        year = int(id.split("-")[1])
+        if year<yearstart:
+            continue # filtered by year, we ignore too old CVEs
+        if id in handled_cveids:
+            continue # there are duplicated entries, ignore if we meet it twice
+        filtered = False
         for word in blackword:
             if wordpresent(word, desc):
                 dprint("blackword", word, id, desc)
                 filtered = True # filtered by black word list
-    if filtered:
-        continue
+        if filtered:
+            continue
     progtmp = None
     for p in proglist:
         if wordpresent(p, desc):
@@ -363,13 +365,20 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     
     for link in ref.split("|"):
         link = link.strip()
-        if "MISC:" in link or "CONFIRM:" in link or "URL:" in link:
-            url = link.replace("MISC:","").replace("CONFIRM:","").replace("URL:","")
-            domain = link.split("://")[1].split("/",1)[0]
-            if domain in lessuseful_domains:
+        if "MISC:" in link or "CONFIRM:" in link:
+            url = link.replace("MISC:","").replace("CONFIRM:","")
+            if getdomain(url) in lessuseful_domains:
                 continue
             links.append(url)
             #print(link)
+    if not links:
+        for link in ref.split("|"):
+            link = link.strip()
+            if "URL:" in link:
+                url = link.replace("URL:","")
+                if getdomain(url) in lessuseful_domains:
+                    continue
+                links.append(url)
     def extract_version(text):
         for t in text.lower().replace("("," ").split():
             t = t.strip(",.;\"'()")
@@ -410,7 +419,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_file_description = vuln_file_description
     x.binary = binary
     x.useful_link = "###".join([i for i in links if i])
-    if prog!="exiv2": #TODO: delete this filter
+    if prog!="jasper": #TODO: delete this filter
         continue
     #if 0:
     #if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
@@ -551,14 +560,19 @@ def gethtml(url, retry=3):
         else:
             raise
 
-from utils import strip_tags, filemd5, getdomain
+def db_delete_cve(id):
+    # delete existing items from database, only need to delete asan and gdb table
+    # general and extra table has id as its primary key, so can be replaced correctly
+    runsql("delete from cve_asan where id=%s", id)
+    runsql("delete from cve_gdb where id=%s", id)
+
 from pprint import pprint
 from reportanalyzer import parse_gdb, parse_asan
 import re
 from poccrawler.githubissue import getissueowner
 from poccrawler.bugzilla import getbugzillareporter
 
-PRELOAD=False
+PRELOAD=True
 
 if not PRELOAD:
     clearpending()
@@ -578,8 +592,9 @@ for i,x in enumerate(data):
                 toopen.append("https://cve.mitre.org/cgi-bin/cvename.cgi?name="+data[j].id)
             for link in links:
                 toopen.append(link)
-        if input("open {} links? Enter n to skip".format(len(toopen))) not in ["n", "N"]:
-            [openbrowser(i) for i in toopen]
+        if not PRELOAD:
+            if input("open {} links? Enter n to skip".format(len(toopen))) not in ["n", "N"]:
+                [openbrowser(i) for i in toopen]
     allhtml = ""
     author_username, author_site, fix = "", "", ""
     note, note2 = "", ""
@@ -627,18 +642,20 @@ for i,x in enumerate(data):
         while True:
             input("Enter when ready")
             try:
+                db_delete_cve(x.id)
                 objs_stacktrace, obj_extra = readtemplate(x.id)
+                for i in objs_stacktrace:
+                    print(i.__dict__)
+                    i.save()
+                print(obj_extra.__dict__)
+                obj_extra.poc_number = pocfile_organize(x.project, x.id)
+                obj_extra.save()
+                
+                savetxt(x.id)
                 break
             except:
                 traceback.print_exc()
-        for i in objs_stacktrace:
-            print(i.__dict__)
-            i.save()
-        print(obj_extra.__dict__)
-        obj_extra.poc_number = pocfile_organize(x.project, x.id)
-        obj_extra.save()
-        
-        savetxt(x.id)
+
   except:
     if not PRELOAD:
         raise
