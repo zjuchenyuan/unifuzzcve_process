@@ -79,7 +79,10 @@ def downloadpocfile(cveid, links, writefile=True):
             url = item[1]
         else:
             url = item
+        if "/blob/" in url:
+            url = url + ("?raw=true" if "?" not in url else "&raw=true")
         if url2file(url, t, writefile=writefile):
+            print("wget '{}' -O {}".format(url, t))
             t+=1
 
 def pocfile_organize(prog, cveid):

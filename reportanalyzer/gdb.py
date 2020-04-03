@@ -2,7 +2,10 @@
 import re
 
 def extract_funcnames(line):
-    return line.replace("(anonymous namespace)::","#anonymous namespace#::").split("→ ")[-1].split("(")[0].replace("#anonymous namespace#::","(anonymous namespace)::")
+    res = line.replace("(anonymous namespace)::","#anonymous namespace#::").split("→ ")[-1].split("(")[0].replace("#anonymous namespace#::","(anonymous namespace)::")
+    if " in " in res:
+        return res.split(" in ")[1]
+    return res
 
 def parse_gdb(text, func_extract_funcnames=extract_funcnames):
     stacks = []

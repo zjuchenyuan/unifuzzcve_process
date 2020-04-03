@@ -438,7 +438,10 @@ def writetemplate(*args):
     for i, value in enumerate(args):
         key = template[i].replace("[]","")
         if isinstance(value, list):
-            value = "\n".join(value)
+            value = "\n".join([i.strip() for i in value if i.strip()])
+        if not value:
+            value = ""
+        value = value.strip()
         if key == "===":
             fp.write("============\n")
         else:
@@ -501,7 +504,7 @@ def readtemplate(id):
             x = CVE_asan()
         else:
             x = CVE_gdb()
-        print(datatmp)
+        #print(datatmp)
         x.id = id
         x.isreproduced = datatmp["isreproduced"]
         x.vuln_type = datatmp["vuln_type"]
