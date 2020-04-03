@@ -363,8 +363,8 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     
     for link in ref.split("|"):
         link = link.strip()
-        if "MISC:" in link or "CONFIRM:" in link:
-            url = link.replace("MISC:","").replace("CONFIRM:","")
+        if "MISC:" in link or "CONFIRM:" in link or "URL:" in link:
+            url = link.replace("MISC:","").replace("CONFIRM:","").replace("URL:","")
             domain = link.split("://")[1].split("/",1)[0]
             if domain in lessuseful_domains:
                 continue
@@ -551,11 +551,12 @@ def gethtml(url, retry=3):
         else:
             raise
 
-from utils import strip_tags, filemd5
+from utils import strip_tags, filemd5, getdomain
 from pprint import pprint
 from reportanalyzer import parse_gdb, parse_asan
 import re
 from poccrawler.githubissue import getissueowner
+from poccrawler.bugzilla import getbugzillareporter
 
 PRELOAD=False
 
@@ -593,6 +594,9 @@ for i,x in enumerate(data):
         if "github.com" in link and "/issues/" in link:
             author_username = getissueowner(link)
             author_site = "github"
+        if "show_bug.cgi" in link:
+            author_site = getdomain(link)
+            author_username = getbugzillareporter(link)
     #continue # this is used to preload all html before manual work
     commands = []
     for line in allhtml.split("\n"):

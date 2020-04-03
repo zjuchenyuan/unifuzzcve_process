@@ -1,5 +1,8 @@
+import sys
+sys.path.append("..")
 from EasyLogin import EasyLogin
 from config import el_params
+from utils import strip_tags
 a = EasyLogin(**el_params)
 
 def geturl(href, urlbase):
@@ -30,6 +33,7 @@ class Bugzilla():
         self.url = url
         self.urlbase = "/".join(url.split("/")[:-1])
         self.b = a.b
+        self.html = res.text
         return res
     
     def get_attachments(self, url, filter_func=None):
@@ -49,12 +53,24 @@ class Bugzilla():
     def download_attachments(self, dest_folder, filter_func=None):
         pass
     
+    def get_reporter(self):
+        try:
+            return strip_tags("<span" + self.html.split(" by <span")[1].split("</span>")[0])
+        except:
+            return ""
+    
     def __init__(self, **args):
         self.att_table = ("table", {"id":"attachment_table"})
         self.att_link = ("a", {"title":"View the content of the attachment"})
         self.__dict__.update(args)
 
+def getbugzillareporter(link):
+    x = Bugzilla()
+    x.get(link)
+    return x.get_reporter()
+
 if __name__ == "__main__":
     x = Bugzilla()
-    x.get("http://bugzilla.maptools.org/show_bug.cgi?id=2484")
-    print(x.download_attachments("libtiff"))
+    x.get("https://bugzilla.redhat.com/show_bug.cgi?id=1494778")
+    #print(x.download_attachments("libtiff"))
+    print(x.get_reporter())

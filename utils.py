@@ -19,3 +19,7 @@ def strip_tags(html):
 import hashlib
 def filemd5(filepath):
     return hashlib.md5(open(filepath, "rb").read()).hexdigest()
+
+from urllib.parse import urlparse
+def getdomain(link):
+    return urlparse(link).netloc
