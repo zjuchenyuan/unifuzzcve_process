@@ -572,7 +572,7 @@ import re
 from poccrawler.githubissue import getissueowner
 from poccrawler.bugzilla import getbugzillareporter
 
-PRELOAD=True
+PRELOAD=False
 
 if not PRELOAD:
     clearpending()
@@ -615,8 +615,8 @@ for i,x in enumerate(data):
     #continue # this is used to preload all html before manual work
     commands = []
     for line in allhtml.split("\n"):
-        if "@@" in line or "$POC" in line or "Command" in line:
-            commands.append(strip_tags(line).replace("$POC","@@"))
+        if "@@" in line or "$POC" in line or "Command" in line or "$FILE" in line:
+            commands.append(strip_tags(line).replace("$POC","@@").replace("$FILE", "@@"))
     #print(commands)
     if "AddressSanitizer" in allhtml:
         stacktype = "asan"
