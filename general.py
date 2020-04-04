@@ -615,8 +615,14 @@ for i,x in enumerate(data):
     #continue # this is used to preload all html before manual work
     commands = []
     for line in allhtml.split("\n"):
-        if "@@" in line or "$POC" in line or "Command" in line or "$FILE" in line:
-            commands.append(strip_tags(line).replace("$POC","@@").replace("$FILE", "@@"))
+        if "@@" in line or "$POC" in line or "Command" in line or "$FILE" in line or "Triggered by " in line:
+            line = strip_tags(line)
+            if not ("@@" in line or "$POC" in line or "Command" in line or "$FILE" in line or "Triggered by " in line):
+                continue
+            line = line.replace("$POC","@@").replace("$FILE", "@@").replace("Triggered by ","").strip()
+            if line in commands:
+                continue
+            commands.append(line)
     #print(commands)
     if "AddressSanitizer" in allhtml:
         stacktype = "asan"

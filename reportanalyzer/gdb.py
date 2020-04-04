@@ -5,6 +5,8 @@ def extract_funcnames(line):
     res = line.replace("(anonymous namespace)::","#anonymous namespace#::").split("→ ")[-1].split("(")[0].replace("#anonymous namespace#::","(anonymous namespace)::")
     if " in " in res:
         return res.split(" in ")[1]
+    if len(res.split())==2 and res.split()[0].startswith("#"):
+        res = res.split()[1]
     return res
 
 def parse_gdb(text, func_extract_funcnames=extract_funcnames):
