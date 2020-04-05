@@ -419,7 +419,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_file_description = vuln_file_description
     x.binary = binary
     x.useful_link = "###".join([i for i in links if i])
-    if prog!="jasper": #TODO: delete this filter
+    if prog!="jhead": #TODO: delete this filter, next: libtiff lame mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump
         continue
     #if 0:
     #if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
@@ -572,7 +572,7 @@ import re
 from poccrawler.githubissue import getissueowner
 from poccrawler.bugzilla import getbugzillareporter
 
-PRELOAD=False
+PRELOAD=True
 
 if not PRELOAD:
     clearpending()
@@ -598,12 +598,14 @@ for i,x in enumerate(data):
     allhtml = ""
     author_username, author_site, fix = "", "", ""
     note, note2 = "", ""
+    noncommit_links = []
     for link in x.useful_link.split("###"):
         if "/commit/" in link or "/pull/" in link or "/compare/" in link:
             fix = link
             continue
         if not link:
             continue
+        noncommit_links.append(link)
         print(link)
         allhtml += gethtml(link)
         if "github.com" in link and "/issues/" in link:
@@ -624,7 +626,7 @@ for i,x in enumerate(data):
                 continue
             commands.append(line)
     #print(commands)
-    if "AddressSanitizer" in allhtml:
+    if "AddressSanitizer" in allhtml or "MemorySanitizer" in allhtml:
         stacktype = "asan"
         stacks = parse_asan(strip_tags(allhtml))
     else:
@@ -635,7 +637,12 @@ for i,x in enumerate(data):
     
     stacktrace = []
     for stack in stacks:
+        if not stack:
+            continue
         stacktrace.extend(stack)
+        stacktrace.append("#######################")
+    if stacktrace:
+        stacktrace = stacktrace[:-1]
     datestrs = re.findall(r"(\d\d\d\d-\d\d-\d\d)", allhtml)
     if datestrs:
         date = datestrs[0]
@@ -643,7 +650,7 @@ for i,x in enumerate(data):
         date = ""
     downloadpocfile(x.id, x.useful_link.split("###"), writefile=not PRELOAD)
     if not PRELOAD:
-        pending_filepath = writetemplate(x.id, x.useful_link.split("###"), commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2, "-1")
+        pending_filepath = writetemplate(x.id, noncommit_links, commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2, "-1")
         os.startfile(pending_filepath.replace("/", os.sep))
         while True:
             input("Enter when ready")
