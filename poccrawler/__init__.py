@@ -51,22 +51,24 @@ def url2file(url, t, retry=3, cache=True, writefile=True):
 def downloadpocfile(cveid, links, writefile=True):
     res=[]
     for link in links:
+        if not link.strip():
+            continue
         if "github.com" in link and "/issues/" in link:
             #print(link)
-            res = getpocurls_githubissue(link)
+            res.extend(getpocurls_githubissue(link))
             #print(res)
         elif "show_bug.cgi" in link and getdomain(link) not in ["bugzilla.mozilla.org"]:
             #print(link)
             domain = link.replace("https://","").replace("http://","").split("/")[0]
-            res = bugzilla.get_attachments(link)
+            res.extend(bugzilla.get_attachments(link))
             #print(res)
         elif "blogs.gentoo.org" in link:
             #print(link)
-            res = getpocurls_gentoo(link)
+            res.extend(getpocurls_gentoo(link))
             #print(res)
         elif "code.google.com/p/chromium/issues" in link or "bugs.chromium.org/p/oss-fuzz/issues" in link:
             #print(link)
-            res = getpocurls_bugschromium(link)
+            res.extend(getpocurls_bugschromium(link))
             #print(res)
         else:
             pass

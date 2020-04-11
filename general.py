@@ -369,6 +369,8 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
             url = link.replace("MISC:","").replace("CONFIRM:","")
             if getdomain(url) in lessuseful_domains:
                 continue
+            if "advisor" in url.lower(): # ignore advisories
+                continue
             links.append(url)
             #print(link)
     if not links:
@@ -419,7 +421,7 @@ for id, _, desc, ref, _, _, _ in csv.reader(open("unibench_cve.csv")):
     x.vuln_file_description = vuln_file_description
     x.binary = binary
     x.useful_link = "###".join([i for i in links if i])
-    if prog!="jhead": #TODO: delete this filter, next: libtiff lame mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump
+    if prog!="lame": #TODO: delete this filter, next: mp3gain swftools ffmpeg flvmeta Bento4 cflow ncurses jq mujs xpdf sqlite sqlite3 binutils tcpdump libtiff
         continue
     #if 0:
     #if "https://bugs.chromium.org/p/oss-fuzz/issues/detail?id=16443" in links:
@@ -572,7 +574,7 @@ import re
 from poccrawler.githubissue import getissueowner
 from poccrawler.bugzilla import getbugzillareporter
 
-PRELOAD=True
+PRELOAD=False
 
 if not PRELOAD:
     clearpending()
@@ -584,7 +586,7 @@ for i,x in enumerate(data):
     continue
   try:
     print(f"[{i}/{len(todo)}] {x.id} {x.vuln_type_description} {x.vuln_func_description}")
-    if i%5==0:
+    if 0 and i%5==0:#TODO delete this 0
         toopen=[]
         for j in range(i, min(i+5, len(data))):
             links = data[j].useful_link.split("###")
@@ -615,11 +617,13 @@ for i,x in enumerate(data):
             author_site = getdomain(link)
             author_username = getbugzillareporter(link)
     #continue # this is used to preload all html before manual work
+    #if "tiffsplit" not in allhtml:
+    #    continue
     commands = []
     for line in allhtml.split("\n"):
-        if "@@" in line or "$POC" in line or "Command" in line or "$FILE" in line or "Triggered by " in line:
+        if "@@" in line or "$POC" in line or "Command" in line or "$FILE" in line or "Triggered by " in line or "/dev/null" in line or "/tmp" in line:
             line = strip_tags(line)
-            if not ("@@" in line or "$POC" in line or "Command" in line or "$FILE" in line or "Triggered by " in line):
+            if not ("@@" in line or "$POC" in line or "Command" in line or "$FILE" in line or "Triggered by " in line or "/dev/null" in line or "/tmp" in line):
                 continue
             line = line.replace("$POC","@@").replace("$FILE", "@@").replace("Triggered by ","").strip()
             if line in commands:
@@ -650,6 +654,7 @@ for i,x in enumerate(data):
         date = ""
     downloadpocfile(x.id, x.useful_link.split("###"), writefile=not PRELOAD)
     if not PRELOAD:
+        [openbrowser(i) for i in x.useful_link.split("###")]
         pending_filepath = writetemplate(x.id, noncommit_links, commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2, "-1")
         os.startfile(pending_filepath.replace("/", os.sep))
         while True:
