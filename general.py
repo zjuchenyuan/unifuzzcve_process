@@ -586,7 +586,7 @@ for i,x in enumerate(data):
     continue
   try:
     print(f"[{i}/{len(todo)}] {x.id} {x.vuln_type_description} {x.vuln_func_description}")
-    if 0 and i%5==0:#TODO delete this 0
+    if i%5==0:#TODO delete this 0
         toopen=[]
         for j in range(i, min(i+5, len(data))):
             links = data[j].useful_link.split("###")
@@ -654,7 +654,7 @@ for i,x in enumerate(data):
         date = ""
     downloadpocfile(x.id, x.useful_link.split("###"), writefile=not PRELOAD)
     if not PRELOAD:
-        [openbrowser(i) for i in x.useful_link.split("###")]
+        #[openbrowser(i) for i in x.useful_link.split("###")]
         pending_filepath = writetemplate(x.id, noncommit_links, commands, "===", "1", stacktype, isreproduced, vuln_type, stacktrace, x.vuln_file_description, "===", date, author_username, author_site, fix, note, note2, "-1")
         os.startfile(pending_filepath.replace("/", os.sep))
         while True:
